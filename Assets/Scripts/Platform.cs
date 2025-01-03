@@ -1,22 +1,28 @@
 using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class Platform : MonoBehaviour
 {
     public float maxRotation = 30f;
-    public float interpolationRatio = 0.1f;
+    public float interpolationRatio = 1f;
     public int rotationInterval = 5;
 
     private Quaternion targetRotation;
-
-    void Start()
-    {
-        StartRotation();
-    }
+    private bool started = false;
 
     void FixedUpdate()
     {
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, interpolationRatio);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, interpolationRatio * Time.fixedDeltaTime);
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.transform.CompareTag("Ball") && !started)
+        {
+            started = true;
+            StartRotation();
+        }
     }
 
     public void RotateRandom()
@@ -36,6 +42,7 @@ public class Platform : MonoBehaviour
 
     public void StopRotation()
     {
+        started = false;
         StopCoroutine(SetRandomTargetPosition());
     }
 
