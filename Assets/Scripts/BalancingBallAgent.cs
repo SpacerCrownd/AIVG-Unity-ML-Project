@@ -18,7 +18,6 @@ public class BalancingBallAgent : Agent
 
     private Rigidbody rbBall;
     private Rigidbody rbPlatform;
-    private bool isOnPlatform;
     private Vector3 globalMoveDir = Vector3.zero;
 
     private void Start()
@@ -80,39 +79,28 @@ public class BalancingBallAgent : Agent
         else
         {
             SetReward(-1f);
-            //ball.StopSimulation();
-            //EndEpisode();
+            ball.StopSimulation();
+            EndEpisode();
         }
     }
 
     void FixedUpdate()
     {
-        RaycastHit slopeHit;
-        isOnPlatform = Physics.Raycast(rbBall.position, -rbPlatform.transform.up, out slopeHit, ballRadius + groundOffset);
+        // cast ray along platform's normal to check if the ball is on the platform
+        bool isOnPlatform = Physics.Raycast(rbBall.position, -rbPlatform.transform.up, ballRadius + groundOffset);
 
-        // if grounded move in the direction decided by the agent at constant speed
+        // if on the platform move in the direction decided by the agent at constant speed
         if (isOnPlatform)
         {
             if (globalMoveDir != Vector3.zero)
             {
-                Vector3 localMoveDir = Vector3.ProjectOnPlane(globalMoveDir, slopeHit.normal).normalized;
-
-                Vector3 gravityForce = Physics.gravity;
-                Vector3 normal = slopeHit.normal;
-                Vector3 gravityOnSlope = Vector3.ProjectOnPlane(gravityForce, normal);
-
+                Vector3 localMoveDir = Vector3.ProjectOnPlane(globalMoveDir, -rbPlatform.transform.up).normalized;
                 Vector3 targetVelocity = localMoveDir * speed;
-                Vector3 requiredForce = rbBall.mass * (targetVelocity - rbBall.velocity) / Time.fixedDeltaTime; 
-                Vector3 gravityCompensation = -gravityOnSlope * rbBall.mass;
 
-                //rbBall.AddForce(requiredForce + gravityCompensation);
                 rbBall.AddForce(targetVelocity - rbBall.velocity, ForceMode.VelocityChange);
             }
-        }else
-        {
-            Debug.Log("not on platform");
         }
-        Debug.Log(rbBall.velocity.magnitude);
+        // otherwise maitain contact with platform by falling with gravity
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
