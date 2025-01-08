@@ -8,7 +8,7 @@ public class BallTest : MonoBehaviour
     public float speed = 2f;
     public GameObject platform;
     public LayerMask groundLayer;
-    public float ballRadius = 0.25f;
+    public float ballRadius = 0.2f;
 
     private Vector3 localMoveDir = Vector3.zero;
     private Rigidbody rb;
@@ -52,15 +52,13 @@ public class BallTest : MonoBehaviour
             {
                 Vector3 moveDir = Vector3.ProjectOnPlane(localMoveDir, platform.transform.up);
                 Vector3 desiredVelocity = moveDir.normalized * speed;
-                //Vector3 velocityDifference = desiredVelocity - rb.velocity;
 
-                rb.AddForce(desiredVelocity, ForceMode.VelocityChange);
+                rb.AddForce(desiredVelocity - rb.velocity, ForceMode.VelocityChange);
+                //rb.MovePosition(rb.position + desiredVelocity * Time.deltaTime);
+                //rb.velocity = desiredVelocity;
             }
         }
 
-        if (rb.velocity.magnitude != speed)
-        {
-            rb.velocity = rb.velocity.normalized * speed;
-        }
+        Debug.Log(rb.velocity.magnitude);
     }
 }

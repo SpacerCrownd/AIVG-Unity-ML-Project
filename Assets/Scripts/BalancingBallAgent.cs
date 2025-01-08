@@ -6,88 +6,119 @@ using UnityEngine;
 public class BalancingBallAgent : Agent
 {
     [Header("Balancing Ball Agent Parameters")]
-    public Platform platform;
+    public GameObject platform;
+    public BallCollision ball;
     public float speed = 2f;
     public float spawnRadius = 2f;
     public float spawnHeigth = 1f;
     public LayerMask groundLayer;
     public float ballRadius = 0.25f;
     public float platformSize = 4f;
+    public float groundOffset = 0.2f;
 
     private Rigidbody rbBall;
-    //private bool simulationStarted = false;
+    private Rigidbody rbPlatform;
+    private bool isOnPlatform;
+    private Vector3 globalMoveDir = Vector3.zero;
 
     private void Start()
     {
         rbBall = GetComponentInChildren<Rigidbody>();
+        rbPlatform = platform.GetComponent<Rigidbody>();
     }
 
     public override void OnEpisodeBegin()
     {
-        //simulationStarted = false;
+        // Reset agent's selected movement direction
+        globalMoveDir = Vector3.zero;
 
-        // Reset platform and sphere position
-        platform.ResetRotation();
+        // Reset sphere velocities, rotation and position
         rbBall.velocity = Vector3.zero;
         rbBall.angularVelocity = Vector3.zero;
-        rbBall.transform.position = new Vector3(
-            Random.Range(-spawnRadius/2, spawnRadius/2),
-            1f,
-            Random.Range(-spawnRadius/2, spawnRadius/2)
-        );
+        rbBall.MoveRotation(Quaternion.identity);
+
+        Vector3 spawnPosition = new Vector3(
+            Random.Range(-spawnRadius, spawnRadius),
+            0,
+            Random.Range(-spawnRadius, spawnRadius)
+            );
+        spawnPosition.Normalize();
+        spawnPosition.y = spawnHeigth;
+        rbBall.MovePosition(spawnPosition);
+
+        // Reset platform velocity and rotation
+        rbPlatform.angularVelocity = Vector3.zero;
+        rbPlatform.MoveRotation(Quaternion.identity);
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
         sensor.AddObservation(platform.transform.rotation.eulerAngles.x/180);
         sensor.AddObservation(platform.transform.rotation.eulerAngles.z/180);
-        sensor.AddObservation(rbBall.transform.position - gameObject.transform.position);
-        sensor.AddObservation(rbBall.velocity);
+        sensor.AddObservation((rbBall.transform.position - platform.transform.position) / platformSize);
+        sensor.AddObservation(rbBall.velocity / 2);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        // Extract ball direction as rotation relative to forward axis for movement
-        float rotation = Mathf.Clamp(actions.ContinuousActions[0], -1, 1) * 180 * Mathf.PI;
-        float rotationInRadians = Mathf.Deg2Rad * rotation;
-
-        // Convert rotation in radians to direction vector
-        Vector3 localMoveDir = new Vector3(Mathf.Cos(rotationInRadians), 0, Mathf.Sin(rotationInRadians));
-
-        // Check if agent is on the platform
-        bool grounded = Physics.Raycast(rbBall.transform.position, Vector3.down, ballRadius, groundLayer);
-
-        if (grounded)
+        if (ball.Started)
         {
-            if (localMoveDir.magnitude != 0)
+            float xAction = 2f * Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
+            float zAction = 2f * Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
+
+            if (xAction != 0 || zAction != 0)
             {
-                // Get movement direction relative to the slope of the platform
-                Vector3 moveDir = Vector3.ProjectOnPlane(localMoveDir, platform.transform.up);
-
-                // Create velocity to apply to maintain a constant speed of 2 m/s in the chosen direction
-                Vector3 newVelocity = moveDir.normalized * speed; 
-
-                // Apply force to the ball as a velocity change to keep speed constant
-                rbBall.AddForce(newVelocity, ForceMode.VelocityChange);
+                globalMoveDir = new Vector3(xAction, 0, zAction);
+                globalMoveDir.Normalize();
             }
         }
 
-        if ((rbBall.transform.position - platform.transform.position).magnitude > 4f)
+        if ((rbBall.transform.position - platform.transform.position).magnitude < 3f)
         {
-            SetReward(-1f);
-            EndEpisode();
+            SetReward(0.1f);
         }
         else
         {
-            SetReward(0.1f);
+            SetReward(-1f);
+            //ball.StopSimulation();
+            //EndEpisode();
         }
     }
 
     void FixedUpdate()
     {
-        if (rbBall.velocity.magnitude != speed)
+        RaycastHit slopeHit;
+        isOnPlatform = Physics.Raycast(rbBall.position, -rbPlatform.transform.up, out slopeHit, ballRadius + groundOffset);
+
+        // if grounded move in the direction decided by the agent at constant speed
+        if (isOnPlatform)
         {
-            rbBall.velocity = rbBall.velocity.normalized * speed;
+            if (globalMoveDir != Vector3.zero)
+            {
+                Vector3 localMoveDir = Vector3.ProjectOnPlane(globalMoveDir, slopeHit.normal).normalized;
+
+                Vector3 gravityForce = Physics.gravity;
+                Vector3 normal = slopeHit.normal;
+                Vector3 gravityOnSlope = Vector3.ProjectOnPlane(gravityForce, normal);
+
+                Vector3 targetVelocity = localMoveDir * speed;
+                Vector3 requiredForce = rbBall.mass * (targetVelocity - rbBall.velocity) / Time.fixedDeltaTime; 
+                Vector3 gravityCompensation = -gravityOnSlope * rbBall.mass;
+
+                //rbBall.AddForce(requiredForce + gravityCompensation);
+                rbBall.AddForce(targetVelocity - rbBall.velocity, ForceMode.VelocityChange);
+            }
+        }else
+        {
+            Debug.Log("not on platform");
         }
+        Debug.Log(rbBall.velocity.magnitude);
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActionsOut = actionsOut.ContinuousActions;
+        continuousActionsOut[0] = Input.GetAxis("Horizontal");
+        continuousActionsOut[1] = Input.GetAxis("Vertical");
     }
 }
