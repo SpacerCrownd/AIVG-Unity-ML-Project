@@ -6,19 +6,18 @@ using UnityEngine;
 public class BalancingBallAgent : Agent
 {
     [Header("Balancing Ball Agent Parameters")]
-    public GameObject platform;
-    public BallCollision ball;
-    public float speed = 2f;
-    public float spawnRadius = 2f;
-    public float spawnHeigth = 1f;
-    public LayerMask groundLayer;
-    public float ballRadius = 0.25f;
-    public float platformSize = 4f;
-    public float groundOffset = 0.2f;
+    public Platform platform; // reference to Platform script and gameobject
+    public float speed = 2f; // agent speed in m/s
+    public float spawnRadius = 2f; // agent max spawn distance from the center of the platform
+    public float spawnHeigth = 1f; // agent spawn height
+    public LayerMask groundLayer; // layer used to check for ground
+    public float ballRadius = 0.25f; // radius of the ball
+    public float platformSize = 4f; // platform side size
+    public float groundOffset = 0.01f; // offset used during ground check
 
     private Rigidbody rbBall;
     private Rigidbody rbPlatform;
-    private Vector3 globalMoveDir = Vector3.zero;
+    private Vector3 globalMoveDir; // agent movement direction in world coordinates
 
     private void Start()
     {
@@ -40,9 +39,12 @@ public class BalancingBallAgent : Agent
             Random.Range(-spawnRadius, spawnRadius),
             0,
             Random.Range(-spawnRadius, spawnRadius)
-            );
-        spawnPosition.Normalize();
+        );
+        spawnPosition = spawnPosition.normalized * spawnRadius; // normalize and multiply by spawn radius to avoid exceeding maximum distance
+        // account for position of platform different than scene origin
+        spawnPosition.x += platform.transform.position.x;
         spawnPosition.y = spawnHeigth;
+        spawnPosition.z += platform.transform.position.z;
         rbBall.MovePosition(spawnPosition);
 
         // Reset platform velocity and rotation
@@ -52,35 +54,40 @@ public class BalancingBallAgent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
+        // platform rotation around x axis normalized
         sensor.AddObservation(platform.transform.rotation.eulerAngles.x/180);
+        // platform rotation around z axis normalized
         sensor.AddObservation(platform.transform.rotation.eulerAngles.z/180);
+        // vector3 that represents the distance of the ball from the platform, normalized dividing by platform size
         sensor.AddObservation((rbBall.transform.position - platform.transform.position) / platformSize);
+        // vector3 that represents the ball's velocity in the x,y,z axes
         sensor.AddObservation(rbBall.velocity / 2);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        if (ball.Started)
+        if (platform.Started)
         {
-            float xAction = 2f * Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
-            float zAction = 2f * Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
+            float xAction = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
+            float zAction = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
 
             if (xAction != 0 || zAction != 0)
             {
                 globalMoveDir = new Vector3(xAction, 0, zAction);
                 globalMoveDir.Normalize();
             }
-        }
+        
 
-        if ((rbBall.transform.position - platform.transform.position).magnitude < 3f)
-        {
-            SetReward(0.1f);
-        }
-        else
-        {
-            SetReward(-1f);
-            ball.StopSimulation();
-            EndEpisode();
+            if ((rbBall.transform.position - platform.transform.position).magnitude < platformSize/2 + 0.5f)
+            {
+                SetReward(0.1f);
+            }
+            else
+            {
+                SetReward(-1f);
+                platform.StopSimulation();
+                EndEpisode();
+            }
         }
     }
 

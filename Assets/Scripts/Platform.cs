@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class BallCollision : MonoBehaviour
+public class Platform : MonoBehaviour
 { 
     public bool Started
     {
@@ -14,7 +14,7 @@ public class BallCollision : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (!started && collision.transform.CompareTag("Platform"))
+        if (!started && collision.transform.CompareTag("Ball"))
         {
             started = true;
         }
