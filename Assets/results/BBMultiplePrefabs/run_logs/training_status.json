@@ -1,0 +1,38 @@
+{
+    "BalanceBall": {
+        "checkpoints": [
+            {
+                "steps": 499856,
+                "file_path": "results\\BBMultiplePrefabs\\BalanceBall\\BalanceBall-499856.onnx",
+                "reward": 100.00001525878906,
+                "creation_time": 1736596275.287327,
+                "auxillary_file_paths": [
+                    "results\\BBMultiplePrefabs\\BalanceBall\\BalanceBall-499856.pt"
+                ]
+            },
+            {
+                "steps": 509402,
+                "file_path": "results\\BBMultiplePrefabs\\BalanceBall\\BalanceBall-509402.onnx",
+                "reward": 97.67501487731934,
+                "creation_time": 1736596275.5014584,
+                "auxillary_file_paths": [
+                    "results\\BBMultiplePrefabs\\BalanceBall\\BalanceBall-509402.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 509402,
+            "file_path": "results\\BBMultiplePrefabs\\BalanceBall.onnx",
+            "reward": 97.67501487731934,
+            "creation_time": 1736596275.5014584,
+            "auxillary_file_paths": [
+                "results\\BBMultiplePrefabs\\BalanceBall\\BalanceBall-509402.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.5.1+cpu"
+    }
+}
